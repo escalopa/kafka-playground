@@ -1,11 +1,11 @@
 produce:
-	go run ./producer/main.go --address "localhost:9092" --topic $(TOPIC_NAME)
+	go run ./producer/main.go --address "localhost:9092" --topic $(TOPIC)
 
 consume:
-	go run ./consumer/main.go --address "localhost:9092" --topic $(TOPIC_NAME) --part $(KAFKA_PART)
+	go run ./consumer/main.go --address "localhost:9092" --topic $(TOPIC) --part $(PART)
 
 create-topic:
 	docker exec kafka0 /usr/bin/kafka-topics --create \
 								--bootstrap-server localhost:9092 \
-                                --partitions 3 \
-                                --topic $(TOPIC_NAME)
+                                --partitions $(PART) \
+                                --topic $(TOPIC)
