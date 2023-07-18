@@ -61,3 +61,18 @@ Use the make command to run a producer.
 make produce TOPIC=topic 
 ```
 
+### Consumer-Group ⏪⏪⏪
+
+ConsumerGroup as the name suggest consumes from more than one  partions/topic at the same time
+
+In a single group can participate up to `N` consumers where `N` is the total numebr of partition of all topics(You can use more than `N` but is useless since you will have consumers with no partitions to listen to)
+
+To run a consumer-group you have to specify the following values
+* `group`: the name of the group
+* `assigner`: the strategy for spreading messages between consumers, must be one out of `sticky,roundrobin,range` otherwise the code panics
+* `topics`: topics names to consume from
+
+Use the following command to run consumer-group
+```shell
+make consume-group GROUP=g0 ASSIGNER="sticky" TOPICS="topic1,topic2,topic3"
+```
