@@ -3,8 +3,12 @@ module github.com/escalopa/kafka-playground
 go 1.20
 
 require (
-	github.com/Shopify/sarama v1.36.0 // indirect
-	github.com/brianvoe/gofakeit/v6 v6.15.0 // indirect
+	github.com/Shopify/sarama v1.36.0
+	github.com/brianvoe/gofakeit/v6 v6.15.0
+	github.com/sirupsen/logrus v1.8.1
+)
+
+require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/eapache/go-resiliency v1.3.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20230111030713-bf00bc1b83b6 // indirect
@@ -21,8 +25,6 @@ require (
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
-	github.com/segmentio/kafka-go v0.4.30 // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
 	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/net v0.11.0 // indirect
 	golang.org/x/sys v0.9.0 // indirect

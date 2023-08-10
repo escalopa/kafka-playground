@@ -7,22 +7,98 @@ services:
     ports:
       - "2181:2181"
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_CLIENT_PORT: 32181
       ZOOKEEPER_TICK_TIME: 2000
-  kafka0:
-    image: confluentinc/cp-kafka:7.0.1
-    restart: unless-stopped
-    container_name: kafka0
+    networks:
+      - kafka-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
     ports:
-      - "9092:9092"
+      - "8084:8080"
+    restart: always
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=kafka_cluster
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka_1:9092,kafka_2:9092,kafka_3:9092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:32181
     depends_on:
       - zookeeper
+      - kafka_1
+      - kafka_2
+      - kafka_3
+    networks:
+      - kafka-network
+
+  kafka_1:
+    container_name: kafka_1
+    image: confluentinc/cp-kafka:7.2.0
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 500m
+    ports:
+      - "9094:9094"
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka0:29092
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: false
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:32181"
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,OUTSIDE://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_1:9092,OUTSIDE://127.0.0.1:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+    networks:
+      - kafka-network
+
+  kafka_2:
+    container_name: kafka_2
+    image: confluentinc/cp-kafka:7.2.0
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 500m
+    ports:
+      - "9095:9095"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:32181"
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,OUTSIDE://0.0.0.0:9095
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_2:9092,OUTSIDE://127.0.0.1:9095
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+    networks:
+      - kafka-network
+
+  kafka_3:
+    container_name: kafka_3
+    image: confluentinc/cp-kafka:7.2.0
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 500m
+    ports:
+      - "9096:9096"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:32181"
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,OUTSIDE://0.0.0.0:9096
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_3:9092,OUTSIDE://127.0.0.1:9096
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+    networks:
+      - kafka-network
+
+networks:
+  kafka-network:
+    driver: bridge
