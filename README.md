@@ -1,4 +1,4 @@
-# kafka-playground 😈
+# kafka-playground 💪
 
 This is a simple kafka playground where you can run commands and experience how kafka
 works.
