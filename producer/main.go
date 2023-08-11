@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"math/rand"
 	"os"
 	"os/signal"
 	"strings"
@@ -14,6 +13,10 @@ import (
 	"github.com/brianvoe/gofakeit/v6"
 	kafka_playground "github.com/escalopa/kafka-playground"
 	log "github.com/sirupsen/logrus"
+)
+
+const (
+	freq = 1 * time.Nanosecond
 )
 
 var (
@@ -91,11 +94,10 @@ func main() {
 	go func() {
 		var i int32
 		for {
-			duration := time.Duration(rand.Intn(2))
 			select {
 			case <-appCtx.Done():
 				return
-			case <-time.After(duration * time.Second):
+			case <-time.After(freq):
 				select {
 				case <-appCtx.Done():
 					return
@@ -124,6 +126,8 @@ func main() {
 
 	log.Info("shutdown has started")
 	cancel()
+
+	time.Sleep(10 * time.Millisecond) // wait for context cancel to take effect
 
 	close(messages)
 	log.Info("closed message channel")

@@ -4,11 +4,49 @@ services:
     image: confluentinc/cp-zookeeper:7.0.1
     restart: unless-stopped
     container_name: zookeeper
+    volumes:
+      - zk_data:/var/lib/zookeeper/data
+      - zk_log:/var/lib/zookeeper/log
     ports:
       - "2181:2181"
     environment:
       ZOOKEEPER_CLIENT_PORT: 32181
       ZOOKEEPER_TICK_TIME: 2000
+      # KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=ruok"
+    networks:
+      - kafka-network
+    # healthcheck:
+    #       test: echo ruok | nc 127.0.0.1 2181 || exit -1
+    #       interval: 2s
+    #       timeout: 3s
+    #       retries: 10
+
+  akhq:
+    container_name: akhq
+    image: tchiotludo/akhq
+    restart: unless-stopped
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            docker-kafka-server:
+              properties:
+                bootstrap.servers: "kafka_1:9092,kafka_2:9092,kafka_3:9092"
+      # schema-registry:
+      #   url: "http://schema-registry:8085"
+      # connect:
+      #   - name: "connect"
+      #     url: "http://connect:8083"
+
+    ports:
+      - 8090:8080
+    depends_on:
+      - zookeeper
+      - kafka_1
+      - kafka_2
+      - kafka_3
+      # schema-registry:
+      #   condition: service_started
     networks:
       - kafka-network
 
@@ -19,6 +57,7 @@ services:
       - "8084:8080"
     restart: always
     environment:
+      - DYNAMIC_CONFIG_ENABLED=true
       - KAFKA_CLUSTERS_0_NAME=kafka_cluster
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka_1:9092,kafka_2:9092,kafka_3:9092
       - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:32181
@@ -34,6 +73,9 @@ services:
     container_name: kafka_1
     image: confluentinc/cp-kafka:7.2.0
     restart: unless-stopped
+    volumes:
+      - kafka_1_data:/var/lib/kafka/data
+      - kafka_1_secrets:/etc/kafka/secrets
     depends_on:
       - zookeeper
     deploy:
@@ -50,13 +92,22 @@ services:
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_1:9092,OUTSIDE://127.0.0.1:9094
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
     networks:
       - kafka-network
+    # healthcheck:
+    #   test: ["CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+    #   interval: 15s
+    #   timeout: 10s
+    #   retries: 5
 
   kafka_2:
     container_name: kafka_2
     image: confluentinc/cp-kafka:7.2.0
     restart: unless-stopped
+    volumes:
+      - kafka_2_data:/var/lib/kafka/data
+      - kafka_2_secrets:/etc/kafka/secrets
     depends_on:
       - zookeeper
     deploy:
@@ -73,13 +124,22 @@ services:
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_2:9092,OUTSIDE://127.0.0.1:9095
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
     networks:
       - kafka-network
+    # healthcheck:
+    #   test: ["CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+    #   interval: 15s
+    #   timeout: 10s
+    #   retries: 5
 
   kafka_3:
     container_name: kafka_3
     image: confluentinc/cp-kafka:7.2.0
     restart: unless-stopped
+    volumes:
+      - kafka_3_data:/var/lib/kafka/data
+      - kafka_3_secrets:/etc/kafka/secrets
     depends_on:
       - zookeeper
     deploy:
@@ -96,8 +156,88 @@ services:
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_3:9092,OUTSIDE://127.0.0.1:9096
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
     networks:
       - kafka-network
+    # healthcheck:
+    #   test: ["CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+    #   interval: 15s
+    #   timeout: 10s
+    #   retries: 5
+
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:latest
+    restart: unless-stopped
+    depends_on:
+      - kafka_1
+      - kafka_2
+      - kafka_3
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'PLAINTEXT://kafka:9092'
+      SCHEMA_REGISTRY_HOST_NAME: 'schema-registry'
+      SCHEMA_REGISTRY_LISTENERS: 'http://0.0.0.0:8085'
+      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: 'INFO'
+
+  # connect:
+  #   image: confluentinc/cp-kafka-connect:latest
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - kafka_1
+  #     - kafka_2
+  #     - kafka_3
+  #     - schema-registry
+  #   environment:
+  #     CONNECT_BOOTSTRAP_SERVERS: 'kafka_1:9092,kafka_2:9092,kafka_3:9092'
+  #     CONNECT_REST_PORT: '8083'
+  #     CONNECT_REST_LISTENERS: 'http://0.0.0.0:8083'
+  #     CONNECT_REST_ADVERTISED_HOST_NAME: 'connect'
+  #     CONNECT_CONFIG_STORAGE_TOPIC: '__connect-config'
+  #     CONNECT_OFFSET_STORAGE_TOPIC: '__connect-offsets'
+  #     CONNECT_STATUS_STORAGE_TOPIC: '__connect-status'
+  #     CONNECT_GROUP_ID: 'kafka-connect'
+  #     CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: 'true'
+  #     CONNECT_KEY_CONVERTER: 'io.confluent.connect.avro.AvroConverter'
+  #     CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: 'http://schema-registry:8085'
+  #     CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: 'true'
+  #     CONNECT_VALUE_CONVERTER: 'io.confluent.connect.avro.AvroConverter'
+  #     CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: 'http://schema-registry:8085'
+  #     CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+  #     CONNECT_INTERNAL_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+  #     CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: '1'
+  #     CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: '1'
+  #     CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: '1'
+  #     CONNECT_PLUGIN_PATH: ' /usr/share/java/'
+
+  # ksqldb:
+  #   image: confluentinc/cp-ksqldb-server:latest
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - kafka
+  #     - connect
+  #     - schema-registry
+  #   ports:
+  #     - 8088:8088
+  #   environment:
+  #     KSQL_BOOTSTRAP_SERVERS: 'kafka_1:9092,kafka_2:9092,kafka_3:9092'
+  #     KSQL_LISTENERS: 'http://0.0.0.0:8088'
+  #     KSQL_KSQL_SERVICE_ID: 'ksql'
+  #     KSQL_KSQL_SCHEMA_REGISTRY_URL: 'http://schema-registry:8085'
+  #     KSQL_KSQL_CONNECT_URL: 'http://connect:8083'
+  #     KSQL_KSQL_SINK_PARTITIONS: '1'
+  #     KSQL_KSQL_LOGGING_PROCESSING_TOPIC_REPLICATION_FACTOR: '1'
+
+volumes:
+  zk_data:
+  zk_log:
+
+  kafka_1_data:
+  kafka_2_data:
+  kafka_3_data:
+
+  kafka_1_secrets:
+  kafka_2_secrets:
+  kafka_3_secrets:
 
 networks:
   kafka-network:
