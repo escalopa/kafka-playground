@@ -181,7 +181,7 @@ func (c ConsumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim
 		select {
 		case message := <-claim.Messages():
 			log.WithFields(log.Fields{"offset": message.Offset, "message": message}).Info("successfully received message")
-			session.Commit()
+			session.MarkMessage(message, "")
 		case <-session.Context().Done():
 			if session.Context().Err() == context.Canceled {
 				return nil

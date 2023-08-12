@@ -32,8 +32,8 @@ func init() {
 }
 
 type errorSend struct {
-	err       error
-	partition int32
+	Err       error
+	Partition int32
 }
 
 func main() {
@@ -74,7 +74,7 @@ func main() {
 				go func() {
 					select {
 					case <-appCtx.Done():
-					case errors <- errorSend{err: err, partition: partition}:
+					case errors <- errorSend{Err: err, Partition: partition}:
 					}
 				}()
 			} else {
@@ -86,7 +86,7 @@ func main() {
 	// Process errors
 	go func() {
 		for e := range errors {
-			log.WithFields(log.Fields{"error": e}).Info("failed to send message")
+			log.WithFields(log.Fields{"error": e.Err}).Info("failed to send message")
 		}
 	}()
 

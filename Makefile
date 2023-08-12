@@ -3,6 +3,7 @@ TOPIC="test"
 PART=3
 REP=3
 
+ASSIGNER=roundrobin
 GROUP=group1
 
 run:
@@ -19,6 +20,9 @@ consume-group:
 
 list:
 	kafka-topics.sh --list --bootstrap-server $(BROKERS_LIST) --topic $(TOPIC)
+
+describe-group:
+	kafka-consumer-groups.sh --bootstrap-server $(BROKERS_LIST) --describe --group $(GROUP)	
 
 create-topic:
 	kafka-topics.sh --create \
