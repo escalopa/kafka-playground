@@ -6,9 +6,11 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/Shopify/sarama"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -26,26 +28,13 @@ func init() {
 	flag.StringVar(&group, "group", "", "consumer group name")
 	log.SetFormatter(&log.JSONFormatter{})
 	flag.Parse()
-
-	if topics == "" {
-		log.Fatal("topics name not passed, use --topics")
-	}
-	if address == "" {
-		log.Fatal("brokers addresses not passed, use --address")
-	}
-	if assigner == "" {
-		log.Fatal("group assigner must be set, use --assigner")
-	}
-	if group == "" {
-		log.Fatal("group name must be set, use --group")
-	}
 }
 
 func main() {
-	defer log.Info("application shutdown successfully")
-
 	appCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	wg := &sync.WaitGroup{}
 
 	config := sarama.NewConfig()
 	switch assigner {
@@ -58,41 +47,21 @@ func main() {
 	default:
 		log.Fatalf("unkown consumerGroup strategy: %s", assigner)
 	}
+	config.ClientID = uuid.New().String()[0:8] // use the first 8 characters of the UUID
 
-	// Create client
-	client, err := sarama.NewClient(strings.Split(address, ","), config)
+	// Create consumerGroup
+	consumerGroup, err := sarama.NewConsumerGroup(strings.Split(address, ","), group, config)
 	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Fatal("failed to create client")
+		log.WithError(err).Fatal("failed to create consumerGroup")
 	}
-	defer func() {
-		err = client.Close()
-		if err != nil {
-			log.WithFields(log.Fields{"error": err}).Warn("failed to close kafka client")
-		} else {
-			log.Info("successfully closed kafka client")
-		}
-	}()
-	log.Info("created kafka client")
-
-	// Create main consumerGroup
-	consumerGroup, err := sarama.NewConsumerGroupFromClient(group, client)
-	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Fatal("failed to create consumerGroup")
-	}
-	defer func() {
-		err = consumerGroup.Close()
-		if err != nil {
-			log.WithFields(log.Fields{"error": err}).Warn("failed to close consumerGroup")
-		} else {
-			log.Info("successfully closed consumerGroup")
-		}
-	}()
 	log.Info("created consumerGroup")
 
 	// Process consumerGroup errors
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for err := range consumerGroup.Errors() {
-			log.WithFields(log.Fields{"error": err}).Warn("received error from consumerGroup")
+			log.WithError(err).Error("received error from consumerGroup")
 		}
 	}()
 
@@ -100,17 +69,20 @@ func main() {
 		ready: make(chan bool),
 	}
 
+	// Consume messages
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			// `Consume` should be called inside an infinite loop, when a
 			// server-side rebalance happens, the consumer session will need to be
 			// recreated to get the new claims
 			err = consumerGroup.Consume(appCtx, strings.Split(topics, ","), consumer)
-			if err != nil {
-				log.WithFields(log.Fields{"error": err}).Fatal("failed to consumer from group")
+			if err != nil && err != sarama.ErrClosedConsumerGroup {
+				log.WithError(err).Fatal("failed to consumer from group")
 			}
 			if appCtx.Err() != nil {
-				log.WithFields(log.Fields{"error": err}).Info("stop processing messages")
+				log.Info("stop processing messages: context done")
 				return
 			}
 			consumer.ready = make(chan bool)
@@ -135,27 +107,39 @@ func main() {
 			keepAlive = false
 		case sig = <-sigState:
 			toggleConsumerState(consumerGroup, sig)
-		case sig = <-sigTerm:
+		case <-sigTerm:
 			log.Info("received termination signal")
 			keepAlive = false
 		}
 	}
 
-	cancel()
 	log.Info("shutdown has started")
+	cancel()
+
+	// Close consumerGroup
+	err = consumerGroup.Close()
+	if err != nil {
+		log.WithError(err).Error("failed to close consumerGroup")
+	} else {
+		log.Info("successfully closed consumerGroup")
+	}
+
+	log.Info("Waiting for all goroutines to finish")
+	wg.Wait()
+	log.Info("application shutdown successfully")
 }
 
 // toggleConsumerState toggle consumer state pause/resume
-func toggleConsumerState(client sarama.ConsumerGroup, sig os.Signal) {
+func toggleConsumerState(group sarama.ConsumerGroup, sig os.Signal) {
 	switch sig {
 	case syscall.SIGSTOP:
-		client.PauseAll()
+		group.PauseAll()
 		log.Info("pause consuming messages")
 	case syscall.SIGCONT:
-		client.ResumeAll()
+		group.ResumeAll()
 		log.Info("resume consuming message")
 	default:
-		log.Errorf("received unknow signal on toggleConsumerStaet: %s", sig)
+		log.Errorf("received unknow signal on toggleConsumerStart: %s", sig)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -31,77 +32,55 @@ func init() {
 	flag.Parse()
 }
 
-type errorSend struct {
-	Err       error
-	Partition int32
-}
-
 func main() {
-	defer log.Info("application shutdown successfully")
-
 	appCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Create kafka producer
+	wg := &sync.WaitGroup{}
+
+	// Create kafka producer config
 	config := sarama.NewConfig()
 	config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
 	config.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
+	config.Producer.Retry.Backoff = 1 * time.Second  // Wait 1 second between retries
+	config.Producer.Return.Errors = true
 	config.Producer.Return.Successes = true
 
+	if err := config.Validate(); err != nil {
+		log.WithError(err).Fatal("failed to validate config")
+	}
+
+	// Create kafka producer
 	log.Infof("using brokers with address: %s ", strings.Split(address, ","))
 	producer, err := sarama.NewSyncProducer(strings.Split(address, ","), config)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err, "message": "failed to create producer"}).Fatal()
 	}
-	defer func() {
-		err = producer.Close()
-		if err != nil {
-			log.WithFields(log.Fields{"error": err, "message": "failed to close producer"}).Error()
-		} else {
-			log.WithFields(log.Fields{"message": "successfully closed kafka producer"}).Info()
-		}
-	}()
 	log.Info("created kafka producer")
 
-	messages := make(chan *sarama.ProducerMessage)
-	errors := make(chan errorSend, 1000)
-
-	// Process messages
-	go func() {
-		for m := range messages {
-			partition, _, err := producer.SendMessage(m)
-			if err != nil {
-				go func() {
-					select {
-					case <-appCtx.Done():
-					case errors <- errorSend{Err: err, Partition: partition}:
-					}
-				}()
-			} else {
-				log.WithFields(log.Fields{"message": m}).Info("message produced")
+	// Send message function that handler errors
+	send := func(m *sarama.ProducerMessage) {
+		partition, _, err := producer.SendMessage(m)
+		if err != nil {
+			if err == sarama.ErrClosedClient {
+				return
 			}
+			log.WithFields(log.Fields{"error": err.Error(), "partition": partition}).Info("failed to send message")
+		} else {
+			log.WithFields(log.Fields{"message": m}).Info("message produced")
 		}
-	}()
-
-	// Process errors
-	go func() {
-		for e := range errors {
-			log.WithFields(log.Fields{"error": e.Err}).Info("failed to send message")
-		}
-	}()
+	}
 
 	// Produce random message
+	wg.Add(1)
 	go func() {
-		var i int32
+		defer wg.Done()
 		for {
 			select {
 			case <-appCtx.Done():
 				return
 			case <-time.After(freq):
-				select {
-				case <-appCtx.Done():
-					return
-				case messages <- &sarama.ProducerMessage{
+				m := &sarama.ProducerMessage{
 					Topic: topic,
 					//Key:   kafka_playground.Key(fmt.Sprintf("group%d", i%2)),
 					Value: kafka_playground.User{
@@ -112,10 +91,9 @@ func main() {
 					},
 					//Partition: i % 2,
 					Timestamp: time.Now(),
-				}:
 				}
+				send(m)
 			}
-			i++
 		}
 	}()
 
@@ -127,11 +105,16 @@ func main() {
 	log.Info("shutdown has started")
 	cancel()
 
-	time.Sleep(10 * time.Millisecond) // wait for context cancel to take effect
+	// Close producer
+	err = producer.Close()
+	if err != nil {
+		log.WithError(err).Error("failed to close producer")
+	} else {
+		log.Info("successfully closed kafka producer")
+	}
 
-	close(messages)
-	log.Info("closed message channel")
+	log.Info("Waiting for all goroutines to finish")
+	wg.Wait()
 
-	close(errors)
-	log.Info("close errors channel")
+	log.Info("application shutdown successfully")
 }
