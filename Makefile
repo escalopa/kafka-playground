@@ -1,17 +1,18 @@
 ## Variables
 
-BROKERS_LIST="localhost:9094,localhost:9095,localhost:9096"
-TOPIC="test"
+BROKERS_LIST="localhost:9094,localhost:9095,localhost:9096,localhost:9097,localhost:9098"
+TOPIC="quickstart-events-0"
 PART=3
 REP=3
 
 ACKS=-1
 
-ASSIGNER=roundrobin # Or sticky, range
+ASSIGNER=sticky # sticky, range, roundrobin
 GROUP=group1
-TOPICS="test1,test2"
+TOPICS="quickstart-events-1,quickstart-events-2"
 
 ## Docker commands (Use this if you don't have the kafka-cli installed on your machine)
+
 run:
 	docker run -it --rm --name kafka_env --network kafka-playground_kafka-network confluentinc/cp-kafka:7.2.0 /bin/bash
 
@@ -30,6 +31,12 @@ consume-group:
 
 list-topic:
 	kafka-topics.sh --list --bootstrap-server $(BROKERS_LIST) --exclude-internal
+
+describe-topic:
+	kafka-topics.sh --describe --bootstrap-server $(BROKERS_LIST) --topic $(TOPIC)
+
+describe-topic-all:
+	./scripts/describe-topic-all.sh $(BROKERS_LIST) 
 
 create-topic:
 	kafka-topics.sh --create \
@@ -53,20 +60,16 @@ delete-topic:
 				--bootstrap-server $(BROKERS_LIST) \
 				--topic $(TOPIC)
 
-describe-topic:
-	kafka-topics.sh --describe --bootstrap-server $(BROKERS_LIST) --topic $(TOPIC)
-
 ## Group Commands
 
 list-group:
 	kafka-consumer-groups.sh --bootstrap-server $(BROKERS_LIST) --list
 
-# TODO: fix-it
-list-describe-all:
-	for g in $(kafka-consumer-groups.sh --bootstrap-server $(BROKERS_LIST) --list); do kafka-consumer-groups.sh --bootstrap-server $(BROKERS_LIST) --describe --group $g; done
-
 describe-group:
 	kafka-consumer-groups.sh --bootstrap-server $(BROKERS_LIST) --describe --group $(GROUP)	
+
+describe-group-all:
+	./scripts/describe-group-all.sh $(BROKERS_LIST) 
 
 ## Cli Commands
 

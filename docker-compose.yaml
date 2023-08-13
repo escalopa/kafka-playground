@@ -12,14 +12,8 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 32181
       ZOOKEEPER_TICK_TIME: 2000
-      # KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=ruok"
     networks:
       - kafka-network
-    # healthcheck:
-    #       test: echo ruok | nc 127.0.0.1 2181 || exit -1
-    #       interval: 2s
-    #       timeout: 3s
-    #       retries: 10
 
   akhq:
     container_name: akhq
@@ -96,11 +90,6 @@ services:
       KAFKA_MIN_INSYNC_REPLICAS: 2
     networks:
       - kafka-network
-    # healthcheck:
-    #   test: ["CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
-    #   interval: 15s
-    #   timeout: 10s
-    #   retries: 5
 
   kafka_2:
     container_name: kafka_2
@@ -129,11 +118,6 @@ services:
       KAFKA_MIN_INSYNC_REPLICAS: 2
     networks:
       - kafka-network
-    # healthcheck:
-    #   test: ["CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
-    #   interval: 15s
-    #   timeout: 10s
-    #   retries: 5
 
   kafka_3:
     container_name: kafka_3
@@ -162,11 +146,63 @@ services:
       KAFKA_MIN_INSYNC_REPLICAS: 2
     networks:
       - kafka-network
-    # healthcheck:
-    #   test: ["CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
-    #   interval: 15s
-    #   timeout: 10s
-    #   retries: 5
+
+  # kafka_4:
+  #   container_name: kafka_4
+  #   image: confluentinc/cp-kafka:7.2.0
+  #   restart: unless-stopped
+  #   volumes:
+  #     - kafka_4_data:/var/lib/kafka/data
+  #     - kafka_4_secrets:/etc/kafka/secrets
+  #   depends_on:
+  #     - zookeeper
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "1"
+  #         memory: 1G
+  #   ports:
+  #     - "9097:9097"
+  #   environment:
+  #     KAFKA_BROKER_ID: 4
+  #     KAFKA_ZOOKEEPER_CONNECT: "zookeeper:32181"
+  #     KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,OUTSIDE://0.0.0.0:9097
+  #     KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_4:9092,OUTSIDE://127.0.0.1:9097
+  #     KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+  #     KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+  #     KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+  #     KAFKA_MIN_INSYNC_REPLICAS: 2
+  #   networks:
+  #     - kafka-network
+
+  # kafka_5:
+  #   container_name: kafka_5
+  #   image: confluentinc/cp-kafka:7.2.0
+  #   restart: unless-stopped
+  #   volumes:
+  #     - kafka_5_data:/var/lib/kafka/data
+  #     - kafka_5_secrets:/etc/kafka/secrets
+  #   depends_on:
+  #     - zookeeper
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "1"
+  #         memory: 1G
+  #   ports:
+  #     - "9098:9098"
+  #   environment:
+  #     KAFKA_BROKER_ID: 5
+  #     KAFKA_ZOOKEEPER_CONNECT: "zookeeper:32181"
+  #     KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,OUTSIDE://0.0.0.0:9098
+  #     KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_5:9092,OUTSIDE://127.0.0.1:9098
+  #     KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+  #     KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+  #     KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+  #     KAFKA_MIN_INSYNC_REPLICAS: 2
+  #   networks:
+  #     - kafka-network
+
 
 
   # schema-registry:
@@ -237,10 +273,14 @@ volumes:
   kafka_1_data:
   kafka_2_data:
   kafka_3_data:
+  # kafka_4_data:
+  # kafka_5_data:
 
   kafka_1_secrets:
   kafka_2_secrets:
   kafka_3_secrets:
+  # kafka_4_secrets:
+  # kafka_5_secrets:
 
 networks:
   kafka-network:
