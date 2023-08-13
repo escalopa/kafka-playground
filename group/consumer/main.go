@@ -48,6 +48,7 @@ func main() {
 		log.Fatalf("unkown consumerGroup strategy: %s", assigner)
 	}
 	config.ClientID = uuid.New().String()[0:8] // use the first 8 characters of the UUID
+	config.Consumer.Offsets.Initial = sarama.OffsetOldest
 
 	// Create consumerGroup
 	consumerGroup, err := sarama.NewConsumerGroup(strings.Split(address, ","), group, config)
@@ -149,13 +150,17 @@ type ConsumerHandler struct {
 }
 
 // Setup is run at the beginning of a new session, before ConsumeClaim.
-func (c ConsumerHandler) Setup(_ sarama.ConsumerGroupSession) error {
+func (c ConsumerHandler) Setup(s sarama.ConsumerGroupSession) error {
 	close(c.ready)
+	log.Info("setup...")
+	for topic, partitions := range s.Claims() {
+		log.WithFields(log.Fields{"topic": topic, "partitions": partitions}).Info("received claim")
+	}
 	return nil
 }
 
 // Cleanup is run at the end of a session, once all ConsumeClaim goroutines have exited.
-func (c ConsumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
+func (c ConsumerHandler) Cleanup(s sarama.ConsumerGroupSession) error {
 	return nil
 }
 
