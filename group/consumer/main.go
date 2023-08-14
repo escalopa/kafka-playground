@@ -48,7 +48,6 @@ func main() {
 		log.Fatalf("unkown consumerGroup strategy: %s", assigner)
 	}
 	config.ClientID = uuid.New().String()[0:8] // use the first 8 characters of the UUID
-	config.Consumer.Offsets.Initial = sarama.OffsetOldest
 
 	// Create consumerGroup
 	consumerGroup, err := sarama.NewConsumerGroup(strings.Split(address, ","), group, config)
