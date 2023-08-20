@@ -1,6 +1,6 @@
 ## Variables
 
-BROKERS_LIST="localhost:9094,localhost:9095,localhost:9096,localhost:9097,localhost:9098"
+BROKERS_LIST="localhost:9094,localhost:9095,localhost:9096,localhost:9097"
 TOPIC="quickstart-events-0"
 PART=3
 REP=3
@@ -9,7 +9,7 @@ ACKS=-1
 
 ASSIGNER=sticky # sticky, range, roundrobin
 GROUP=group1
-TOPICS="quickstart-events-1,quickstart-events-2"
+TOPICS="quickstart-events-1,quickstart-events-2,quickstart-events-3"
 
 ## Docker commands (Use this if you don't have the kafka-cli installed on your machine)
 
@@ -33,10 +33,13 @@ list-topic:
 	kafka-topics.sh --list --bootstrap-server $(BROKERS_LIST) --exclude-internal
 
 describe-topic:
-	kafka-topics.sh --describe --bootstrap-server $(BROKERS_LIST) --topic $(TOPIC)
+	kafka-topics.sh --describe --bootstrap-server $(BROKERS_LIST) --topic $(TOPIC) 
 
+# Useful flags
+# 	--under-replicated-partitions Shows where one or more of the replicas for the partition are not in-sync with the leader
+# 	--unavailable-partitions Shows all partitions without a leader
 describe-topic-all:
-	./scripts/describe-topic-all.sh $(BROKERS_LIST) 
+	kafka-topics.sh --describe --bootstrap-server $(BROKERS_LIST) --exclude-internal
 
 create-topic:
 	kafka-topics.sh --create \
@@ -44,8 +47,14 @@ create-topic:
 				--bootstrap-server $(BROKERS_LIST) \
 				--partitions $(PART) \
 				--replication-factor $(REP) \
+				--topic $(TOPIC) \
 				--config min.insync.replicas=$(MIN_SYNC) \
-				--topic $(TOPIC)
+				--config cleanup.policy=compact \
+				--config compression.type=gzip \
+				--config delete.retention.ms=86400000  \
+				--config max.message.bytes=104857600 \
+				--config retention.bytes=1073741824 \
+				--config retention.ms=86400000
 
 alter-topic:
 	kafka-topics.sh --alter \
@@ -69,7 +78,17 @@ describe-group:
 	kafka-consumer-groups.sh --bootstrap-server $(BROKERS_LIST) --describe --group $(GROUP)	
 
 describe-group-all:
-	./scripts/describe-group-all.sh $(BROKERS_LIST) 
+	./scripts/describe-group-all.sh $(BROKERS_LIST)
+
+## Configs
+
+## Partition Commands
+
+partition-reassign: # not working
+	kafka-reassign-partitions.sh --bootstrap-server $(BROKERS_LIST) --execute --reassignment-json-file $(TOPIC_FILE)
+
+partition-verification:
+	kafka-replica-verification.sh --broker-list $(BROKERS_LIST) --topics-include $(TOPICS_INCLUDE)
 
 ## Cli Commands
 
@@ -86,7 +105,8 @@ produce-cli:
 				--bootstrap-server $(BROKERS_LIST) \
 				--property parse.key=true \
 				--request-required-acks $(ACKS)	\
+				--topic $(TOPIC) \
 				--timeout 100	\
 				--property key.separator=":" \
-				--topic $(TOPIC) 
+				--sync
 	

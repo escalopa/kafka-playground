@@ -10,7 +10,6 @@ import (
 	"syscall"
 
 	"github.com/Shopify/sarama"
-	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -36,6 +35,7 @@ func main() {
 
 	wg := &sync.WaitGroup{}
 
+	// Create consumer config
 	config := sarama.NewConfig()
 	switch assigner {
 	case "sticky":
@@ -47,7 +47,10 @@ func main() {
 	default:
 		log.Fatalf("unkown consumerGroup strategy: %s", assigner)
 	}
-	config.ClientID = uuid.New().String()[0:8] // use the first 8 characters of the UUID
+
+	if err := config.Validate(); err != nil {
+		log.WithError(err).Fatal("failed to validate config")
+	}
 
 	// Create consumerGroup
 	consumerGroup, err := sarama.NewConsumerGroup(strings.Split(address, ","), group, config)
