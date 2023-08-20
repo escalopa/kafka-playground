@@ -5,7 +5,6 @@ go 1.20
 require (
 	github.com/Shopify/sarama v1.36.0
 	github.com/brianvoe/gofakeit/v6 v6.15.0
-	github.com/google/uuid v1.3.0
 	github.com/sirupsen/logrus v1.8.1
 )
 
