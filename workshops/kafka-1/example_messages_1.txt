@@ -1,9 +1,0 @@
-{"id":2, "status":"created"}
-{"id":5, "status":"created"}
-{"id":2, "status":"assemble"}
-{"id":6, "status":"created"}
-{"id":5, "status":"assemble"}
-{"id":2, "status":"delivered"}
-{"id":6, "status":"assemble"}
-{"id":5, "status":"delivered"}
-{"id":6, "status":"delivered"}

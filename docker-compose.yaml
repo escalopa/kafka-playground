@@ -1,23 +1,7 @@
-version: '3'
 services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.0.1
-    restart: unless-stopped
-    container_name: zookeeper
-    volumes:
-      - zk_data:/var/lib/zookeeper/data
-      - zk_log:/var/lib/zookeeper/log
-    ports:
-      - "2181:2181"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 32181
-      ZOOKEEPER_TICK_TIME: 2000
-    networks:
-      - kafka-network
-
   akhq:
     container_name: akhq
-    image: tchiotludo/akhq
+    image: tchiotludo/akhq:0.25.1
     restart: unless-stopped
     environment:
       AKHQ_CONFIGURATION: |
@@ -25,251 +9,171 @@ services:
           connections:
             docker-kafka-server:
               properties:
-                bootstrap.servers: "kafka_1:9092,kafka_2:9092,kafka_3:9092,kafka_4:9092"
-      # schema-registry:
-      #   url: "http://schema-registry:8085"
-      # connect:
-      #   - name: "connect"
-      #     url: "http://connect:8083"
-
+                bootstrap.servers: "kafka1:9092,kafka2:9092,kafka3:9092,kafka4:9092,kafka5:9092"
     ports:
-      - 8090:8080
+      - "8090:8080"
     depends_on:
-      - zookeeper
-      - kafka_1
-      - kafka_2
-      - kafka_3
-      - kafka_4
-      # schema-registry:
-      #   condition: service_started
+      - kafka1
+      - kafka2
+      - kafka3
+      - kafka4
+      - kafka5
     networks:
       - kafka-network
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: provectuslabs/kafka-ui:v0.7.2
     container_name: kafka-ui
     ports:
-      - "8084:8080"
+      - "9000:8080"
     restart: always
     environment:
       DYNAMIC_CONFIG_ENABLED: true
-      KAFKA_CLUSTERS_0_NAME: 'kafka_cluster'
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: 'kafka_1:9092,kafka_2:9092,kafka_3:9092,kafka_4:9092'
-      KAFKA_CLUSTERS_0_ZOOKEEPER: 'zookeeper:32181'
+      KAFKA_CLUSTERS_0_NAME: 'main-cluster'
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: 'kafka1:9092,kafka2:9092,kafka3:9092,kafka4:9092,kafka5:9092'
     depends_on:
-      - zookeeper
-      - kafka_1
-      - kafka_2
-      - kafka_3
-      - kafka_4
+      - kafka1
+      - kafka2
+      - kafka3
+      - kafka4
+      - kafka5
     networks:
       - kafka-network
 
-  kafka_1:
-    container_name: kafka_1
+  kafka1:
     image: confluentinc/cp-kafka:7.2.0
+    container_name: kafka1
     restart: unless-stopped
-    volumes:
-      - kafka_1_data:/var/lib/kafka/data
-      - kafka_1_secrets:/etc/kafka/secrets
-    depends_on:
-      - zookeeper
+    ports:
+      - "9001:9001"
     deploy:
       resources:
         limits:
           cpus: "1"
           memory: 1G
-    ports:
-      - "9094:9094"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:32181"
-      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,OUTSIDE://0.0.0.0:9094
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_1:9092,OUTSIDE://127.0.0.1:9094
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka1:9092,CONTROLLER://kafka1:9093,OUTSIDE://0.0.0.0:9001
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092,OUTSIDE://127.0.0.1:9001
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka1:9093,2@kafka2:9093,3@kafka3:9093,4@kafka4:9093,5@kafka5:9093'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_MIN_INSYNC_REPLICAS: 2
+    volumes:
+      - ./run_workaround.sh:/tmp/run_workaround.sh
+    command: "bash -c '/tmp/run_workaround.sh && /etc/confluent/docker/run'"
     networks:
       - kafka-network
 
-  kafka_2:
-    container_name: kafka_2
+  kafka2:
     image: confluentinc/cp-kafka:7.2.0
+    container_name: kafka2
     restart: unless-stopped
-    volumes:
-      - kafka_2_data:/var/lib/kafka/data
-      - kafka_2_secrets:/etc/kafka/secrets
-    depends_on:
-      - zookeeper
+    ports:
+      - "9002:9002"
     deploy:
       resources:
         limits:
           cpus: "1"
           memory: 1G
-    ports:
-      - "9095:9095"
     environment:
-      KAFKA_BROKER_ID: 2
-      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:32181"
-      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,OUTSIDE://0.0.0.0:9095
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_2:9092,OUTSIDE://127.0.0.1:9095
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_NODE_ID: 2
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka2:9092,CONTROLLER://kafka2:9093,OUTSIDE://0.0.0.0:9002
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9092,OUTSIDE://127.0.0.1:9002
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka1:9093,2@kafka2:9093,3@kafka3:9093,4@kafka4:9093,5@kafka5:9093'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_MIN_INSYNC_REPLICAS: 2
+    volumes:
+      - ./run_workaround.sh:/tmp/run_workaround.sh
+    command: "bash -c '/tmp/run_workaround.sh && /etc/confluent/docker/run'"
     networks:
       - kafka-network
 
-  kafka_3:
-    container_name: kafka_3
+  kafka3:
     image: confluentinc/cp-kafka:7.2.0
+    container_name: kafka3
     restart: unless-stopped
-    volumes:
-      - kafka_3_data:/var/lib/kafka/data
-      - kafka_3_secrets:/etc/kafka/secrets
-    depends_on:
-      - zookeeper
+    ports:
+      - "9003:9003"
     deploy:
       resources:
         limits:
           cpus: "1"
           memory: 1G
-    ports:
-      - "9096:9096"
     environment:
-      KAFKA_BROKER_ID: 3
-      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:32181"
-      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,OUTSIDE://0.0.0.0:9096
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_3:9092,OUTSIDE://127.0.0.1:9096
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_NODE_ID: 3
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka3:9092,CONTROLLER://kafka3:9093,OUTSIDE://0.0.0.0:9003
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092,OUTSIDE://127.0.0.1:9003
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka1:9093,2@kafka2:9093,3@kafka3:9093,4@kafka4:9093,5@kafka5:9093'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_MIN_INSYNC_REPLICAS: 2
+    volumes:
+      - ./run_workaround.sh:/tmp/run_workaround.sh
+    command: "bash -c '/tmp/run_workaround.sh && /etc/confluent/docker/run'"
     networks:
       - kafka-network
 
-  kafka_4:
-    container_name: kafka_4
+  kafka4:
     image: confluentinc/cp-kafka:7.2.0
+    container_name: kafka4
     restart: unless-stopped
-    volumes:
-      - kafka_4_data:/var/lib/kafka/data
-      - kafka_4_secrets:/etc/kafka/secrets
-    depends_on:
-      - zookeeper
+    ports:
+      - "9004:9004"
     deploy:
       resources:
         limits:
           cpus: "1"
           memory: 1G
-    ports:
-      - "9097:9097"
     environment:
-      KAFKA_BROKER_ID: 4
-      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:32181"
-      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,OUTSIDE://0.0.0.0:9097
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_4:9092,OUTSIDE://127.0.0.1:9097
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_NODE_ID: 4
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka4:9092,CONTROLLER://kafka4:9093,OUTSIDE://0.0.0.0:9004
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka4:9092,OUTSIDE://127.0.0.1:9004
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka1:9093,2@kafka2:9093,3@kafka3:9093,4@kafka4:9093,5@kafka5:9093'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_MIN_INSYNC_REPLICAS: 2
+    volumes:
+      - ./run_workaround.sh:/tmp/run_workaround.sh
+    command: "bash -c '/tmp/run_workaround.sh && /etc/confluent/docker/run'"
     networks:
       - kafka-network
 
-  # schema-registry:
-  #   image: confluentinc/cp-schema-registry:latest
-  #   container_name: schema-registry
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - kafka_1
-  #     - kafka_2
-  #     - kafka_3
-  #   environment:
-  #     SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka_1:9092,kafka_2:9092,kafka_3:9092'
-  #     SCHEMA_REGISTRY_HOST_NAME: 'schema-registry'
-  #     SCHEMA_REGISTRY_LISTENERS: 'http://0.0.0.0:8085'
-  #     SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: 'INFO'
-
-  # connect:
-  #   image: confluentinc/cp-kafka-connect:latest
-  #   container_name: connect
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - kafka_1
-  #     - kafka_2
-  #     - kafka_3
-  #     - schema-registry
-  #   environment:
-  #     CONNECT_BOOTSTRAP_SERVERS: 'kafka_1:9092,kafka_2:9092,kafka_3:9092'
-  #     CONNECT_REST_PORT: '8083'
-  #     CONNECT_REST_LISTENERS: 'http://0.0.0.0:8083'
-  #     CONNECT_REST_ADVERTISED_HOST_NAME: 'connect'
-  #     CONNECT_CONFIG_STORAGE_TOPIC: '__connect-config'
-  #     CONNECT_OFFSET_STORAGE_TOPIC: '__connect-offsets'
-  #     CONNECT_STATUS_STORAGE_TOPIC: '__connect-status'
-  #     CONNECT_GROUP_ID: 'kafka-connect'
-  #     CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: 'true'
-  #     CONNECT_KEY_CONVERTER: 'io.confluent.connect.avro.AvroConverter'
-  #     CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: 'http://schema-registry:8085'
-  #     CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: 'true'
-  #     CONNECT_VALUE_CONVERTER: 'io.confluent.connect.avro.AvroConverter'
-  #     CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: 'http://schema-registry:8085'
-  #     CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
-  #     CONNECT_INTERNAL_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
-  #     CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: '1'
-  #     CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: '1'
-  #     CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: '1'
-  #     CONNECT_PLUGIN_PATH: ' /usr/share/java/'
-
-  # ksqldb:
-  #   image: confluentinc/cp-ksqldb-server:latest
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - kafka
-  #     - connect
-  #     - schema-registry
-  #   ports:
-  #     - 8088:8088
-  #   environment:
-  #     KSQL_BOOTSTRAP_SERVERS: 'kafka_1:9092,kafka_2:9092,kafka_3:9092'
-  #     KSQL_LISTENERS: 'http://0.0.0.0:8088'
-  #     KSQL_KSQL_SERVICE_ID: 'ksql'
-  #     KSQL_KSQL_SCHEMA_REGISTRY_URL: 'http://schema-registry:8085'
-  #     KSQL_KSQL_CONNECT_URL: 'http://connect:8083'
-  #     KSQL_KSQL_SINK_PARTITIONS: '1'
-  #     KSQL_KSQL_LOGGING_PROCESSING_TOPIC_REPLICATION_FACTOR: '1'
-  
-  # db:
-  #   image: postgres:15
-  #   container_name: db
-  #   restart: unless-stopped
-  #   volumes:
-  #     - db_data:/var/lib/postgresql/data
-  #   environment:
-  #     POSTGRES_USER: postgres
-  #     POSTGRES_PASSWORD: postgres
-  #     POSTGRES_DB: kafka_db
-  #   ports:
-  #     - "5432:5432"
-  #   networks:
-  #     - kafka-network
-
-volumes:
-  zk_data:
-  zk_log:
-
-  kafka_1_data:
-  kafka_2_data:
-  kafka_3_data:
-  kafka_4_data:
-
-  kafka_1_secrets:
-  kafka_2_secrets:
-  kafka_3_secrets:
-  kafka_4_secrets:
-
-  db_data:
+  kafka5:
+    image: confluentinc/cp-kafka:7.2.0
+    container_name: kafka5
+    restart: unless-stopped
+    ports:
+      - "9005:9005"
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+    environment:
+      KAFKA_NODE_ID: 5
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka5:9092,CONTROLLER://kafka5:9093,OUTSIDE://0.0.0.0:9005
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka5:9092,OUTSIDE://127.0.0.1:9005
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka1:9093,2@kafka2:9093,3@kafka3:9093,4@kafka4:9093,5@kafka5:9093'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+    volumes:
+      - ./run_workaround.sh:/tmp/run_workaround.sh
+    command: "bash -c '/tmp/run_workaround.sh && /etc/confluent/docker/run'"
+    networks:
+      - kafka-network
 
 networks:
   kafka-network:

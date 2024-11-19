@@ -1,31 +1,27 @@
 ## Variables
-
-BROKERS_LIST="localhost:9094,localhost:9095,localhost:9096,localhost:9097"
-TOPIC="quickstart-events-0"
+BROKERS_LIST="localhost:9001,localhost:9002,localhost:9003,localhost:9004,localhost:9005"
+TOPIC="events"
 PART=3
 REP=3
 
 ACKS=-1
 
 ASSIGNER=sticky # sticky, range, roundrobin
-GROUP=group1
-TOPICS="quickstart-events-1,quickstart-events-2,quickstart-events-3"
+GROUP=random
+TOPICS="events"
 
 ## Docker commands (Use this if you don't have the kafka-cli installed on your machine)
 
 run:
-	docker run -it --rm --name kafka_env --network kafka-playground_kafka-network confluentinc/cp-kafka:7.2.0 /bin/bash
+	docker run -it --rm --name kafka_local --network kafka-playground_kafka-network confluentinc/cp-kafka:7.2.0 /bin/bash
 
-## Golang application commands
+## Go app commands (`2>&1` is used to redirect the stderr to stdout)
 
 produce:
-	go run ./producer/main.go --address  $(BROKERS_LIST) --topic $(TOPIC)
+	@go run ./producer/main.go --address $(BROKERS_LIST) --topic $(TOPIC)
 
 consume:
-	go run ./consumer/main.go --address  $(BROKERS_LIST) --topic $(TOPIC) --part $(PART)
-
-consume-group:
-	go run ./group/consumer/main.go --address  $(BROKERS_LIST) --group $(GROUP) --assigner $(ASSIGNER) --topics $(TOPICS)
+	@go run ./group/consumer/main.go --address $(BROKERS_LIST) --group $(GROUP) --assigner $(ASSIGNER) --topics $(TOPIC)
 
 ## Topics Commands
 
@@ -35,9 +31,6 @@ list-topic:
 describe-topic:
 	kafka-topics.sh --describe --bootstrap-server $(BROKERS_LIST) --topic $(TOPIC) 
 
-# Useful flags
-# 	--under-replicated-partitions Shows where one or more of the replicas for the partition are not in-sync with the leader
-# 	--unavailable-partitions Shows all partitions without a leader
 describe-topic-all:
 	kafka-topics.sh --describe --bootstrap-server $(BROKERS_LIST) --exclude-internal
 
@@ -84,13 +77,10 @@ describe-group-all:
 
 ## Partition Commands
 
-partition-reassign: # not working
-	kafka-reassign-partitions.sh --bootstrap-server $(BROKERS_LIST) --execute --reassignment-json-file $(TOPIC_FILE)
-
 partition-verification:
 	kafka-replica-verification.sh --broker-list $(BROKERS_LIST) --topics-include $(TOPICS_INCLUDE)
 
-## Cli Commands
+## CLI Commands
 
 consume-cli	:
 	kafka-console-consumer.sh \
