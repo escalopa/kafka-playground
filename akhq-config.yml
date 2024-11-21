@@ -1,0 +1,23 @@
+akhq:
+  connections:
+    docker-kafka-server:
+      properties:
+        bootstrap.servers: "kafka1:9092,kafka2:9092,kafka3:9092,kafka4:9092,kafka5:9092"
+  security:
+    default-group: 
+      - no-roles
+    basic-auth:
+      - username: admin
+        password: "d74ff0ee8da3b9806b18c877dbf29bbde50b5bd8e4dad7a3a725000feb82e8f1"
+        groups:
+        - admin
+
+micronaut:
+  security:
+    enabled: true
+    token:
+      jwt:
+        signatures:
+          secret:
+            generator:
+              secret: vSUsUwOvlYSoroq6cWBA3YCUymKBMw2AO77OvBJrduilqTPAIP077jjI1UtCDVPEUrueEmh4avmz81Zft7j1e1ENmhOxHz52EIN9SzXld6guZeDxmXWvj61eLfLD8BIw2GIYFf6A2klEI2H5OhOLzf52w8fWeuMiIih3UY0E6F8hevmaFxG89oS6Tmodak9Uqkjgx2qJBgQOEiDdayceU4GK9XYzE3T4KNyj5YSdALEkAjOiSQpSrZrt2Y4YLb3I

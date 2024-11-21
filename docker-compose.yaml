@@ -3,13 +3,8 @@ services:
     container_name: akhq
     image: tchiotludo/akhq:0.25.1
     restart: unless-stopped
-    environment:
-      AKHQ_CONFIGURATION: |
-        akhq:
-          connections:
-            docker-kafka-server:
-              properties:
-                bootstrap.servers: "kafka1:9092,kafka2:9092,kafka3:9092,kafka4:9092,kafka5:9092"
+    volumes:
+    - ./akhq-config.yml:/app/application.yml
     ports:
       - "8090:8080"
     depends_on:
@@ -28,9 +23,11 @@ services:
       - "9000:8080"
     restart: always
     environment:
-      DYNAMIC_CONFIG_ENABLED: true
       KAFKA_CLUSTERS_0_NAME: 'main-cluster'
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: 'kafka1:9092,kafka2:9092,kafka3:9092,kafka4:9092,kafka5:9092'
+      SPRING_CONFIG_ADDITIONAL-LOCATION: /app/application.yml
+    volumes:
+      - ./kafka-ui-config.yml:/app/application.yml
     depends_on:
       - kafka1
       - kafka2

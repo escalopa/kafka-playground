@@ -1,0 +1,13 @@
+kafka:
+  clusters:
+    - name: "main-cluster"
+      bootstrapServers: "kafka1:9092,kafka2:9092,kafka3:9092,kafka4:9092,kafka5:9092"
+
+auth:
+  type: "LOGIN_FORM"
+
+spring:
+  security:
+    user:
+      name: "admin"
+      password: "pass"
