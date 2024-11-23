@@ -18,10 +18,10 @@ run:
 ## Go app commands (`2>&1` is used to redirect the stderr to stdout)
 
 produce:
-	@go run ./producer/main.go --address $(BROKERS_LIST) --topic $(TOPIC)
+	@go run ./producer/. --address $(BROKERS_LIST) --topic $(TOPIC)
 
 consume:
-	@go run ./group/consumer/main.go --address $(BROKERS_LIST) --group $(GROUP) --assigner $(ASSIGNER) --topics $(TOPIC)
+	@go run ./group/consumer/. --address $(BROKERS_LIST) --group $(GROUP) --assigner $(ASSIGNER) --topics $(TOPIC)
 
 ## Topics Commands
 

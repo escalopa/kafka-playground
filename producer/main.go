@@ -18,7 +18,7 @@ var (
 func init() {
 	flag.StringVar(&address, "address", "", "kafka brokers address")
 	flag.StringVar(&topic, "topic", "", "kafka produce topic name")
-	flag.DurationVar(&freq, "freq", 1*time.Second, "frequency to produce message")
+	flag.DurationVar(&freq, "freq", 1*time.Millisecond, "frequency to produce message")
 	flag.Parse()
 
 	log.SetFormatter(&log.JSONFormatter{})
